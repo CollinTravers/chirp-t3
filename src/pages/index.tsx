@@ -5,6 +5,13 @@ import Link from "next/link";
 
 import { RouterOutputs, api } from "~/utils/api";
 
+//day.ks, this is for simple time
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import Image from "next/image";
+
+dayjs.extend(relativeTime);
+
 const CreatePostWizard = () => {
   const {user} = useUser();
 
@@ -13,7 +20,7 @@ const CreatePostWizard = () => {
   if(!user) return null;
 
   return <div className="flex gap-3 w-full">
-    <img className="w-14 h-14 rounded-full" src={user.profileImageUrl} alt="Profile image"/>
+    <Image className="w-14 h-14 rounded-full" width={56} height={56} src={user.profileImageUrl} alt="Profile image"/>
     <input className="bg-transparent grow outline-none" placeholder="Type some emojis!"></input>
   </div>
 }
@@ -27,14 +34,14 @@ const PostView = (props: PostWithUser) => {
   const {post, author} = props;
   return(
     <div className="flex p-4 border-b border-slate-400 gap-3" key={post.id}>
-      <img className="w-14 h-14 rounded-full" src={author.profileImageUrl} alt="Profile image" />
+      <Image className="w-14 h-14 rounded-full" width={56} height={56} src={author.profileImageUrl} alt="Profile image" />
       <div className="flex flex-col">
-        <div className="flex text-slate-300">
-          {`@${author.username}`}
+        <div className="flex text-slate-300 gap-1">
+          <span>{`@${author.username}`}</span>
+          <span className="font-thin">{` · ${dayjs(post.createdAt).fromNow()}`}</span>
         </div>
-        <span>
-          {post.content}
-        </span>
+        
+        <span>{post.content}</span>
       </div>  
     </div>
   );
@@ -42,12 +49,9 @@ const PostView = (props: PostWithUser) => {
 
 const Home: NextPage = () => {
   const user = useUser();
-
   const {data, isLoading} = api.posts.getAll.useQuery();
-
   //You can grab states from react useQuery
   if (isLoading) return <div>Loading...</div>
-
   //if no data, return this
   if (!data) return <div>Something went wrong...</div>
 
