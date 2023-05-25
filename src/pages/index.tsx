@@ -9,6 +9,7 @@ import { RouterOutputs, api } from "~/utils/api";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import Image from "next/image";
+import { LoadingPage, LoadingSpinner } from "~/components/loading";
 
 dayjs.extend(relativeTime);
 
@@ -25,10 +26,8 @@ const CreatePostWizard = () => {
   </div>
 }
 
-
 //tells typescript we want an element from this array type
 type PostWithUser = RouterOutputs["posts"]["getAll"][number];
-
 
 const PostView = (props: PostWithUser) => {
   const {post, author} = props;
@@ -47,13 +46,31 @@ const PostView = (props: PostWithUser) => {
   );
 }
 
+const Feed = () => {
+  const { data, isLoading: postsLoading} = api.posts.getAll.useQuery();
+
+  if (postsLoading) return <LoadingPage/>;
+
+  if (!data) return <div>Something went wrong</div>;
+
+  return (
+    <div className="flex flex-col">
+      {data?.map((fullPost) => (
+        <PostView {...fullPost} key={fullPost.post.id}/>
+      ))}
+    </div>
+  );
+};
+
 const Home: NextPage = () => {
-  const user = useUser();
-  const {data, isLoading} = api.posts.getAll.useQuery();
-  //You can grab states from react useQuery
-  if (isLoading) return <div>Loading...</div>
-  //if no data, return this
-  if (!data) return <div>Something went wrong...</div>
+  const {isLoaded: userLoaded, isSignedIn} = useUser();
+
+  //even though we are not using the data, we do this to make sure it fetches early
+  //useQuery can use the cached data, this is why we want to call it early.
+  api.posts.getAll.useQuery();
+
+  //return empty div if user isn't loaded
+  if (!userLoaded) return <div></div>
 
   return (
     <>
@@ -65,14 +82,11 @@ const Home: NextPage = () => {
       <main className="flex justify-center">
         <div className=" w-full md:max-w-2xl border-x h-screen border-slate-400">
           <div className="border-b border-slate-400 p-4">
-            {!user.isSignedIn && <div className="flex justify-center"><SignInButton /> </div>}
-            {user.isSignedIn && <CreatePostWizard />}
+            {!isSignedIn && <div className="flex justify-center"><SignInButton /> </div>}
+            {isSignedIn && <CreatePostWizard />}
           </div>
-          <div className="flex flex-col">
-            {data?.map((fullPost) => (<PostView {...fullPost} key={fullPost.post.id}/>))}
-          </div>
+          <Feed/>
         </div>
-        
       </main>
     </>
   );
