@@ -1,4 +1,4 @@
-import { SignIn, SignInButton, SignOutButton, SignUpButton, useUser } from "@clerk/nextjs";
+import { SignIn, SignInButton, SignOutButton, SignUpButton, useSession, useUser } from "@clerk/nextjs";
 import { type NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
@@ -10,11 +10,23 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import Image from "next/image";
 import { LoadingPage, LoadingSpinner } from "~/components/loading";
+import { useState } from "react";
 
 dayjs.extend(relativeTime);
 
 const CreatePostWizard = () => {
   const {user} = useUser();
+  const [input, setInput] = useState("");
+  const ctx = api.useContext();
+
+  const {mutate, isLoading: isPosting} = api.posts.create.useMutation({
+    onSuccess: () => {
+      //We want to clear the input
+      //Then we want to refetch everything
+      setInput("");
+      void ctx.posts.getAll.invalidate();
+    },
+  });
 
   console.log(user);
 
@@ -22,7 +34,14 @@ const CreatePostWizard = () => {
 
   return <div className="flex gap-3 w-full">
     <Image className="w-14 h-14 rounded-full" width={56} height={56} src={user.profileImageUrl} alt="Profile image"/>
-    <input className="bg-transparent grow outline-none" placeholder="Type some emojis!"></input>
+    <input 
+      className="bg-transparent grow outline-none" 
+      placeholder="Type some emojis!"
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      disabled={isPosting}
+    />
+    <button onClick={() => mutate({content: input})}>Post</button>
   </div>
 }
 
@@ -40,7 +59,7 @@ const PostView = (props: PostWithUser) => {
           <span className="font-thin">{` · ${dayjs(post.createdAt).fromNow()}`}</span>
         </div>
         
-        <span>{post.content}</span>
+        <span className="text-2xl">{post.content}</span>
       </div>  
     </div>
   );
@@ -55,7 +74,7 @@ const Feed = () => {
 
   return (
     <div className="flex flex-col">
-      {data?.map((fullPost) => (
+      {data.map((fullPost) => (
         <PostView {...fullPost} key={fullPost.post.id}/>
       ))}
     </div>

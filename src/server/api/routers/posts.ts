@@ -3,7 +3,7 @@ import { User } from "@clerk/nextjs/dist/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure, privateProcedure } from "~/server/api/trpc";
 
 const filterUserForClient = (user: User) => {
   return {
@@ -17,6 +17,9 @@ export const postsRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
     const posts = await ctx.prisma.post.findMany({
       take: 100,
+      orderBy: [
+        {createdAt: "desc"}
+      ],
     });
 
     //Here we are getting the users from the clerk client, and then filtering that data to only
@@ -50,4 +53,28 @@ export const postsRouter = createTRPCRouter({
       }
     })
   }),
+
+  //we use privateProcedure here because if public, currentUser can be null or undefined.
+  //if private, it has to exist. Gaurenteeing authentication
+  //zod is a validator. It validates that a piece of data matches a shape
+  //we want to use this to see if the input is a valid emoji
+  //below it is saying, input must be a string emoji, greater than 1 character and no larger than 280
+  create: privateProcedure.input(
+    z.object({
+    content: z.string().emoji().min(1).max(280),
+  })
+  )
+  .mutation(async ({ctx, input}) => {
+    const authorId = ctx.userId;
+
+    const post = await ctx.prisma.post.create({
+      data: {
+        authorId,
+        content: input.content,
+      }
+    });
+
+    return post;
+  }),
+
 });
