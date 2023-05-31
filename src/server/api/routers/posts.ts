@@ -15,7 +15,6 @@ const filterUserForClient = (user: User) => {
 
 import { Ratelimit } from "@upstash/ratelimit"; // for deno: see above
 import { Redis } from "@upstash/redis";
-import { lutimes } from "fs";
 
 // Create a new ratelimiter, that allows 3 requests per 1 minute
 const ratelimit = new Ratelimit({
@@ -76,9 +75,10 @@ export const postsRouter = createTRPCRouter({
   //zod is a validator. It validates that a piece of data matches a shape
   //we want to use this to see if the input is a valid emoji
   //below it is saying, input must be a string emoji, greater than 1 character and no larger than 280
+  //if you notice the string inside of the emoji function, that is a custom error message coming from the server
   create: privateProcedure.input(
     z.object({
-    content: z.string().emoji().min(1).max(280),
+    content: z.string().emoji("Only emojis are allowed!").min(1).max(280),
   })
   )
   .mutation(async ({ctx, input}) => {
