@@ -39,7 +39,7 @@ const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
         <div className="h-36 border-slate-400 bg-slate-600 relative">
           <Image 
             src={data.profileImageUrl} 
-            alt={`${data.username ?? data.externalUsername}'s profile picture`} 
+            alt={`${data.username ?? data.externalUsername ?? "unknown"}'s profile picture`} 
             width={128} 
             height={128}
             className="-mb-[64px] absolute bottom-0 left-0 ml-4 rounded-full border-4 border-black bg-black"
@@ -47,7 +47,7 @@ const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
         </div>
         <div className="h-[64px]"></div>
         <div className="p-4 text-2xl font-bold">
-          {`@${data.username ?? data.externalUsername}`}
+          {`@${data.username ?? data.externalUsername ??"unknown"}`}
         </div>
         <div className="border-b w-full"></div>
         <ProfileFeed userId={data.id}/>
