@@ -8,6 +8,38 @@ import { createTRPCRouter, publicProcedure, privateProcedure } from "~/server/ap
 import { Ratelimit } from "@upstash/ratelimit"; // for deno: see above
 import { Redis } from "@upstash/redis";
 import { filterUserForClient } from "~/server/helpers/filterUserForClient";
+import { Post } from "@prisma/client";
+
+const addUserDataToPosts = async (posts: Post[]) => {
+  //Here we are getting the users from the clerk client, and then filtering that data to only
+    //return the id, username and profile image url
+    const users = (
+      await clerkClient.users.getUserList({
+      userId: posts.map((posts) => posts.authorId),
+      limit: 100,
+    })
+    ).map(filterUserForClient);
+
+    //now for each post, we are grabbing the post and the authorId 
+    return posts.map((post) => {
+
+      const author = users.find((user) => user.id)
+
+      if (!author || !author.username) 
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Author for post not found",
+        });
+      
+      return{
+        post, 
+        author: {
+          ...author, 
+          username: author.username,
+        },
+      };
+    });
+};
 
 // Create a new ratelimiter, that allows 3 requests per 1 minute
 const ratelimit = new Ratelimit({
@@ -31,37 +63,21 @@ export const postsRouter = createTRPCRouter({
       ],
     });
 
-    //Here we are getting the users from the clerk client, and then filtering that data to only
-    //return the id, username and profile image url
-    const users = (
-      await clerkClient.users.getUserList({
-      userId: posts.map((posts) => posts.authorId),
-      limit: 100,
-    })
-    ).map(filterUserForClient);
-
-    console.log(users)
-
-    //now for each post, we are grabbing the post and the authorId 
-    return posts.map((post) => {
-
-      const author = users.find((user) => user.id)
-
-      if (!author || !author.username) 
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Author for post not found",
-        });
-      
-      return{
-        post, 
-        author: {
-          ...author, 
-          username: author.username,
-        },
-      }
-    })
+    return addUserDataToPosts(posts);
   }),
+
+  getPostsByUserId: publicProcedure.input(
+    z.object({
+      userId: z.string(),
+  })).query(({ctx, input}) => ctx.prisma.post.findMany({
+    where: {
+      authorId: input.userId,
+    },
+    take: 100,
+    orderBy: [{ createdAt: "desc"}],
+  }).then(addUserDataToPosts)
+  ),
+
 
   //we use privateProcedure here because if public, currentUser can be null or undefined.
   //if private, it has to exist. Gaurenteeing authentication

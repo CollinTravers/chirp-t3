@@ -3,6 +3,20 @@ import Head from "next/head";
 import { api } from "~/utils/api";
 import Image from "next/image";
 
+const ProfileFeed = (props: {userId: string}) => {
+  const {data, isLoading} = api.posts.getPostsByUserId.useQuery({userId: props.userId})
+
+  if (isLoading) return <LoadingPage/>;
+
+  if (!data || data.length === 0) return <div> User has not posted</div>;
+
+  return <div className="flex flex-col">
+    {data.map((fullPost) => (
+      <PostView {...fullPost} key={fullPost.post.id}/>
+    ))}
+  </div>
+}
+
 const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
   const {data} = api.profile.getUserByUsername.useQuery({
     username,
@@ -32,6 +46,7 @@ const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
           {`@${data.username ?? ""}`}
         </div>
         <div className="border-b w-full"></div>
+        <ProfileFeed userId={data.id}/>
       </PageLayout>
     </>
   );
@@ -42,6 +57,8 @@ import { appRouter } from "~/server/api/root";
 import {prisma} from "~/server/db";
 import superjson from "superjson";
 import { PageLayout } from "~/components/layout";
+import { LoadingPage } from "~/components/loading";
+import { PostView } from "~/components/postview";
 
 //This SSG helper lets us prefetch queries on the server. These helpers make tRPC call procedures directly on the server,
 //without an TTP request, similar to server-side calls. 
