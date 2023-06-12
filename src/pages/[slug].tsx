@@ -2,6 +2,10 @@ import type { GetStaticProps, NextPage } from "next";
 import Head from "next/head";
 import { api } from "~/utils/api";
 import Image from "next/image";
+import { PageLayout } from "~/components/layout";
+import { LoadingPage } from "~/components/loading";
+import { PostView } from "~/components/postview";
+import { generateSSGHelper } from "~/server/helpers/ssgHelper";
 
 const ProfileFeed = (props: {userId: string}) => {
   const {data, isLoading} = api.posts.getPostsByUserId.useQuery({userId: props.userId})
@@ -52,23 +56,8 @@ const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
   );
 };
 
-import { createServerSideHelpers } from '@trpc/react-query/server';
-import { appRouter } from "~/server/api/root";
-import {prisma} from "~/server/db";
-import superjson from "superjson";
-import { PageLayout } from "~/components/layout";
-import { LoadingPage } from "~/components/loading";
-import { PostView } from "~/components/postview";
-
-//This SSG helper lets us prefetch queries on the server. These helpers make tRPC call procedures directly on the server,
-//without an TTP request, similar to server-side calls. 
-
 export const getStaticProps: GetStaticProps = async (context) => {
-  const helpers = createServerSideHelpers({
-    router: appRouter,
-    ctx: { prisma, userId: null },
-    transformer: superjson, // optional - adds superjson serialization
-  });
+  const ssg = generateSSGHelper();
 
   const slug = context.params?.slug;
 
@@ -78,14 +67,14 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const username = slug.replace("@", "");
 
   //This lets us fetch ahead of time and hydrate it through server side props
-  await helpers.profile.getUserByUsername.prefetch({ username });
+  await ssg.profile.getUserByUsername.prefetch({ username });
 
   //dehydrate
   //takes all the things we fetched, shapes it, on the app side will hydrate through react query
   //this means the data is there when the page loads, the loading state should never be hit.
   return {
     props: {
-      trpcState: helpers.dehydrate(),
+      trpcState: ssg.dehydrate(),
       username,
     },
   };
